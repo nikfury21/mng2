@@ -95,7 +95,8 @@ def boldify(text: str) -> str:
 
 
 
-MODEL_PATH = r"C:\Users\shaw2\OneDrive\Documents\mng\realesrgan\RealESRGAN_x4plus.pth"
+MODEL_PATH = "realesrgan/RealESRGAN_x4plus.pth"
+
 
 rrdbnet = RRDBNet(
     num_in_ch=3, num_out_ch=3,
@@ -4030,3 +4031,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
