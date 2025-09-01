@@ -12,10 +12,11 @@ duckduckgo-search==6.2.5
 
 # Image & video processing
 Pillow==10.4.0
-opencv-python==4.10.0.84
-realesrgan
-basicsr
+opencv-python==4.7.0.72
+realesrgan==0.3.0
+basicsr==1.4.2
 
+# Torch stack (compatible with realesrgan 0.3.0)
 torch==1.13.1
 torchvision==0.14.1
 numpy==1.23.5
@@ -28,4 +29,5 @@ playwright==1.46.0
 
 # Timezones
 pytz==2024.2
+
 
