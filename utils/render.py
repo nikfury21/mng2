@@ -141,6 +141,14 @@ async def create_quote_image(name, message, profile_image=None, output_path="sti
                     omit_background=True,
                 )
                 print(f"[✅] Sticker saved to: {os.path.abspath(output_path)}")
+
+                # ✅ Convert file to BytesIO for Telegram
+                with open(output_path, "rb") as f:
+                    bio = io.BytesIO(f.read())
+                    bio.name = "sticker.png"
+                    bio.seek(0)
+                    return bio
+
             else:
                 print("[❌] Error: Could not find .wrapper element in HTML")
             await browser.close()
@@ -201,4 +209,5 @@ async def handle_message(message):
         )
     except Exception as e:
         print(f"Handler error: {e}")
+
 """
