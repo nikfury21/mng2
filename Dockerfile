@@ -20,4 +20,4 @@ RUN pip install --no-cache-dir --upgrade pip \
 COPY . .
 
 # Run your bot
-CMD ["python", "mng2/mng2.py"]
+CMD ["python", "mng2.py"]
