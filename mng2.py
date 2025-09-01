@@ -2883,33 +2883,31 @@ async def quote_command(update, context):
         profile_image_path = os.path.join(temp_dir, f"{user.id}_placeholder.png")
         create_placeholder_avatar(profile_image_path, initial, user.id)
 
-    temp_png = tempfile.mktemp(suffix=".png")
-    temp_webp = tempfile.mktemp(suffix=".webp")
-
     try:
         wait_msg = await message.reply_text("Please wait while quoting your text...")
 
-        await create_quote_image(
+        # 🔑 NEW: get BytesIO directly instead of writing to temp_png
+        bio = await create_quote_image(
             name=user.first_name or "User",
             message=text,
             profile_image=profile_image_path,
-            output_path=temp_png,
+            output_path="sticker.png",  # still saved for debugging
         )
-        img = Image.open(temp_png)
-        img.save(temp_webp, "WEBP", lossless=True)
+
+        if not bio:
+            await wait_msg.edit_text("❌ Failed to render sticker.")
+            return
 
         await wait_msg.delete()  # remove waiting message
-        with open(temp_webp, "rb") as sticker_file:
-            await message.reply_sticker(sticker=InputFile(sticker_file))
+        await message.reply_sticker(sticker=InputFile(bio))  # use BytesIO directly
 
     except Exception as e:
         await message.reply_text("Failed to create sticker.")
         print(f"Error: {e}")
 
     finally:
-        for p in [profile_image_path, temp_png, temp_webp]:
-            if p and os.path.exists(p):
-                os.remove(p)
+        if profile_image_path and os.path.exists(profile_image_path):
+            os.remove(profile_image_path)
 
 
 
@@ -4023,6 +4021,7 @@ if __name__ == "__main__":
     # Start your bot
     import asyncio
     asyncio.run(main())
+
 
 
 
