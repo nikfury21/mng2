@@ -1,0 +1,29 @@
+# Telegram Bot frameworks
+python-telegram-bot[job-queue]==20.8
+pyrogram==2.0.106
+telethon==1.36.0
+TgCrypto==1.2.5
+
+# AI / API clients
+groq==0.9.0
+google-generativeai==0.7.2
+huggingface-hub==0.24.6
+duckduckgo-search==6.2.5
+
+# Image & video processing
+Pillow==10.4.0
+opencv-python==4.10.0.84
+realesrgan==0.3.0
+basicsr==1.4.2
+torch==1.13.1
+torchvision==0.14.1
+numpy==1.23.5
+
+# Networking / HTTP
+requests==2.32.3
+
+# Rendering (for utils/render.py)
+playwright==1.46.0
+
+# Timezones
+pytz==2024.2
