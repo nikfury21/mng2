@@ -3994,13 +3994,9 @@ def main():
     application.run_polling()
 
 
-if __name__ == "__main__":
-    main()
-
-
-
 from flask import Flask
 import threading
+import os
 
 flask_app = Flask(__name__)
 
@@ -4008,20 +4004,17 @@ flask_app = Flask(__name__)
 def home():
     return "Bot is running!"
 
-import os
 def run_flask():
     port = int(os.environ.get("PORT", 10000))
+    print(f"[Flask] Starting on 0.0.0.0:{port}", flush=True)
     flask_app.run(host="0.0.0.0", port=port)
 
-
 if __name__ == "__main__":
-    # Start Flask in a separate thread
-    threading.Thread(target=run_flask).start()
+    # Start Flask in a background thread
+    threading.Thread(target=run_flask, daemon=True).start()
 
     # Start your bot
     import asyncio
     asyncio.run(main())
-
-
 
 
