@@ -1403,7 +1403,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/song - Show current song info\n"
         "/ping - Check bot status\n"
         "/help - Show this help message\n"
-        "/vplay- ni aata meko"
+        "/vplay- will add soon"
+        "/upscale- free hosting server cant handle (not my fault)"
     ]
     
     await update.message.reply_text("Available commands:\n" + "\n".join(commands))
@@ -3146,39 +3147,6 @@ async def translate_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 
-async def upscale_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        # Check if user replied to an image
-        if update.message.reply_to_message and update.message.reply_to_message.photo:
-            photo = update.message.reply_to_message.photo[-1]
-        elif update.message.photo:  # or sent directly with command
-            photo = update.message.photo[-1]
-        else:
-            await update.message.reply_text("⚠️ Please reply to or send an image with /upscale.")
-            return
-
-        # Download input image
-        file = await context.bot.get_file(photo.file_id)
-        input_path = "input.jpg"
-        output_path = "upscaled.jpg"
-        await file.download_to_drive(input_path)
-
-        await update.message.reply_text("⏳ Upscaling your image... please wait.")
-
-        # Define a synchronous function for heavy processing to run in a thread
-        def run_upscale():
-            img = cv2.imread(input_path, cv2.IMREAD_COLOR)
-            output, _ = upsampler.enhance(img, outscale=4)
-            cv2.imwrite(output_path, output)
-
-        # Run upscale off the main event loop thread
-        await asyncio.to_thread(run_upscale)
-
-        # Send the upscaled image result
-        await update.message.reply_photo(photo=open(output_path, "rb"))
-
-    except Exception as e:
-        await update.message.reply_text(f"❌ Error during upscaling:\n{e}")
 
 
 async def describe_image(image_path):
@@ -3976,7 +3944,6 @@ def main():
     application.add_handler(CommandHandler("getsticker", getsticker))
     application.add_handler(CommandHandler("tr", translate_command))
     application.add_handler(CommandHandler("translate", translate_list))
-    application.add_handler(CommandHandler("upscale", upscale_command))
     application.add_handler(CommandHandler("pp", pp_command))
     application.add_handler(CommandHandler("calc", calc_command))
     application.add_handler(CommandHandler("report", report_command))
@@ -4056,5 +4023,6 @@ if __name__ == "__main__":
     # Start your bot
     import asyncio
     asyncio.run(main())
+
 
 
