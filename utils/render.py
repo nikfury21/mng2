@@ -95,10 +95,11 @@ HTML_TEMPLATE = """
 
 async def create_quote_image(name, message, profile_image=None, output_path="sticker.png"):
     # Absolute font paths - UPDATE THESE TO YOUR ACTUAL PATHS
-    fallback_font = r"C:\Users\shaw2\OneDrive\Documents\quote bot\fonts\unifont-16.0.04.otf"
-    symbola_font = r"C:\Users\shaw2\OneDrive\Documents\quote bot\fonts\Symbola.ttf"
-    dejavu_font = r"C:\Users\shaw2\OneDrive\Documents\quote bot\fonts\DejaVuSans.ttf"
-    arial_font = r"C:\Users\shaw2\OneDrive\Documents\quote bot\fonts\arial unicode ms.otf"
+    fallback_font = "fonts/unifont-16.0.04.otf"
+    symbola_font  = "fonts/Symbola.ttf"
+    dejavu_font   = "fonts/DejaVuSans-Bold.ttf"
+    arial_font    = "fonts/arial.ttf"
+
 
     temp_profile_uri = None
 
@@ -211,3 +212,4 @@ async def handle_message(message):
         print(f"Handler error: {e}")
 
 """
+
