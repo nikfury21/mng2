@@ -30,6 +30,7 @@ playwright==1.46.0
 # Timezones
 pytz==2024.2
 jinja2
+flask
 
 
 
