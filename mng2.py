@@ -4032,3 +4032,25 @@ def main():
 if __name__ == "__main__":
     main()
 
+
+
+from flask import Flask
+import threading
+
+flask_app = Flask(__name__)
+
+@flask_app.route('/')
+def home():
+    return "Bot is running!"
+
+def run_flask():
+    flask_app.run(host="0.0.0.0", port=10000)
+
+if __name__ == "__main__":
+    # Start Flask in a separate thread
+    threading.Thread(target=run_flask).start()
+
+    # Start your bot
+    import asyncio
+    asyncio.run(main())
+
