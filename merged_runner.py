@@ -22,12 +22,12 @@ import signal
 PY = sys.executable
 BASE = os.path.dirname(os.path.abspath(__file__))
 MAIN = os.path.join(BASE, "main.py")
-MNG = os.path.join(BASE, "mng.py")
+MNG2 = os.path.join(BASE, "mng2.py")
 
 if not os.path.exists(MAIN):
     print("ERROR: main.py not found in", BASE)
     sys.exit(1)
-if not os.path.exists(MNG):
+if not os.path.exists(MNG2):
     print("ERROR: mng.py not found in", BASE)
     sys.exit(1)
 
@@ -70,7 +70,7 @@ signal.signal(signal.SIGTERM, handle_sigint)
 # Start both processes
 start("main", MAIN)
 time.sleep(1)
-start("mng", MNG)
+start("mng2", MNG2)
 
 # monitor and restart if needed
 try:
@@ -80,7 +80,7 @@ try:
             if p.poll() is not None:
                 print(f"[launcher] {name} exited with code {p.returncode}. Restarting in 2s.")
                 time.sleep(2)
-                start(name, MAIN if name == "main" else MNG)
+                start(name, MAIN if name == "main" else MNG2)
 except KeyboardInterrupt:
     stop_all()
     print("[launcher] Exiting.")
