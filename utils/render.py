@@ -5,6 +5,12 @@ import os
 import base64
 import uuid
 from pathlib import Path
+import platform
+import asyncio, sys
+import shutil  # put this at the top with your imports
+# Fix Playwright subprocess issue on Windows
+if sys.platform.startswith("win"):
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 HTML_TEMPLATE = """
 <html>
@@ -95,11 +101,10 @@ HTML_TEMPLATE = """
 
 async def create_quote_image(name, message, profile_image=None, output_path="sticker.png"):
     # Absolute font paths - UPDATE THESE TO YOUR ACTUAL PATHS
-    fallback_font = "fonts/unifont-16.0.04.otf"
-    symbola_font  = "fonts/Symbola.ttf"
-    dejavu_font   = "fonts/DejaVuSans-Bold.ttf"
-    arial_font    = "fonts/arial.ttf"
-
+    fallback_font = r"C:\Users\shaw2\OneDrive\Documents\quote bot\fonts\unifont-16.0.04.otf"
+    symbola_font = r"C:\Users\shaw2\OneDrive\Documents\quote bot\fonts\Symbola.ttf"
+    dejavu_font = r"C:\Users\shaw2\OneDrive\Documents\quote bot\fonts\DejaVuSans.ttf"
+    arial_font = r"C:\Users\shaw2\OneDrive\Documents\quote bot\fonts\arial unicode ms.otf"
 
     temp_profile_uri = None
 
@@ -130,7 +135,24 @@ async def create_quote_image(name, message, profile_image=None, output_path="sti
 
     try:
         async with async_playwright() as p:
-            browser = await p.chromium.launch()
+            import shutil  # put this at the top with your imports
+
+            if platform.system() == "Windows":
+    # Find installed Chrome/Edge explicitly
+                chrome_path = shutil.which("chrome") or shutil.which("chrome.exe") \
+                              or shutil.which("msedge") or shutil.which("msedge.exe")
+                if not chrome_path:
+                    raise RuntimeError("Chrome/Edge not found. Please install Chrome or Edge on Windows.")
+
+                browser = await p.chromium.launch(
+                    headless=True,
+                    executable_path=chrome_path
+                )
+            else:
+                # Use default bundled Chromium on Linux/Render
+                browser = await p.chromium.launch(headless=True)
+
+
             page = await browser.new_page()
             await page.set_content(html)
             await page.wait_for_timeout(500)
@@ -212,4 +234,5 @@ async def handle_message(message):
         print(f"Handler error: {e}")
 
 """
+
 
