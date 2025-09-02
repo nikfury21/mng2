@@ -4,7 +4,7 @@ FROM python:3.10-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies needed for OpenCV/RealESRGAN + Git + Playwright deps
+# Install system dependencies needed for OpenCV/RealESRGAN + Git
 RUN apt-get update && apt-get install -y \
     build-essential \
     libgl1 \
@@ -12,8 +12,6 @@ RUN apt-get update && apt-get install -y \
     git \
     wget \
     ca-certificates \
-    fonts-unifont \
-    fonts-ubuntu \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
@@ -21,12 +19,11 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
-# Install Playwright Chromium (without --with-deps, since we added fonts manually)
+# Install Playwright Chromium (without --with-deps, no system fonts needed)
 RUN playwright install chromium
 
-# Copy project files
+# Copy project files (including your fonts/)
 COPY . .
 
 # Run your bot (merged_runner.py is the entrypoint)
 CMD ["python", "merged_runner.py"]
-
