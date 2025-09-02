@@ -3981,6 +3981,10 @@ def main():
     application.run_polling()
 
 
+if __name__ == "__main__":
+    print("This script should be launched via merged_runner.py, not directly.")
+
+
 
 
 
