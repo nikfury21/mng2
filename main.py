@@ -61,12 +61,15 @@ from FrozenMusic.telegram_client.startup_hooks import precheck_channels
 load_dotenv()
 
 
-API_ID = 23679210
-API_HASH = "de1030f3e6fa64f9d41540b1f6f53b7a"
-BOT_TOKEN = "8268020073:AAGyas0D7zKTtjXF6DfiLbunqMfylNpxn1E"
-ASSISTANT_SESSION = "BQFpUOoAT9nda7gf18pENLi7aLGBJPyiGdwTHpyP6j87oHdt3kKlCUkGrgKYGHaigTFWHC-jvlvue_0noqu2ofYwyosulOHqGo4-Xykivk132wwL3v8LzJXAZ3EsDmfWAkLxKfHEGNLhFVcN5z42hT-Lci00vYvwH3O-VrFF3pYlJmnEDO9eGX6GpbK8sh-ktq8DSnnLKu7yXWhizhI7UvWDROL5nCzIEMaGE4YVardQGKzoz8mpv0HVGhNrkZdPPNG4kqMkc_lor5f_SpVPwyUvd7-PQuSG3HPv6hKYDSwWc9kbTrE3YqSsua8J7eEwzn1btAfAElczNQMdO8ZXwv5EsvOmMAAAAAGvMqHnAA"
-OWNER_ID = "7038303029"
+import os
+
+API_ID = int(os.getenv("MAIN_API_ID"))
+API_HASH = os.getenv("MAIN_API_HASH")
+BOT_TOKEN = os.getenv("MAIN_BOT_TOKEN")
+ASSISTANT_SESSION = os.getenv("MAIN_ASSISTANT_SESSION")
+OWNER_ID = os.getenv("MAIN_OWNER_ID")
 BACKUP_SEARCH_API_URL = os.getenv("BACKUP_SEARCH_API_URL", "")
+
 
 # ——— Monkey-patch resolve_peer ——————————————
 logging.getLogger("pyrogram").setLevel(logging.ERROR)
@@ -1437,4 +1440,5 @@ if __name__ == "__main__":
 async def main():
     await bot.start()
     print("music bot started")
+
     await bot.idle()
