@@ -99,21 +99,31 @@ def boldify(text: str) -> str:
 
 
 
+import os
+from pyrogram import Client as PyroClient
+import google.generativeai as genai
+from groq import Client
+
+# === Configuration (from .env) ===
+API_ID = int(os.getenv("MNG_API_ID"))
+API_HASH = os.getenv("MNG_API_HASH")
+BOT_TOKEN = os.getenv("MNG_BOT_TOKEN")
+
 pyro_client = PyroClient(
     "pic_bot",
-    api_id=21494758,
-    api_hash="eaa72b55e8d061bfebbaf0f82e327aaa",
-    bot_token="8268020073:AAGyas0D7zKTtjXF6DfiLbunqMfylNpxn1E"
+    api_id=API_ID,
+    api_hash=API_HASH,
+    bot_token=BOT_TOKEN
 )
 
-# === Configuration ===
-BOT_TOKEN = "8268020073:AAGyas0D7zKTtjXF6DfiLbunqMfylNpxn1E"   
-API_ID = 21494758
-API_HASH = "eaa72b55e8d061bfebbaf0f82e327aaa"
-client = Client(api_key="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")  #get it from groq.console.com
-GEMINI_KEY = "AIzaSyBogKwtW5QnjHkOYTPADGt_Sb5tiHHN7tM"
+# AI keys
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+client = Client(api_key=GROQ_API_KEY)
+
+GEMINI_KEY = os.getenv("GEMINI_KEY")
 genai.configure(api_key=GEMINI_KEY)
 gemini_model = genai.GenerativeModel("gemini-2.5-flash")
+
 
 
 
@@ -3973,6 +3983,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
