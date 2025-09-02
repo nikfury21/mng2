@@ -45,8 +45,6 @@ import base64
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 import cv2
-from realesrgan import RealESRGANer
-from basicsr.archs.rrdbnet_arch import RRDBNet
 import google.generativeai as genai
 from urllib.parse import quote_plus
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
@@ -81,6 +79,7 @@ from urllib.parse import quote_plus
 from telegram import Update
 from telegram.ext import ContextTypes
 import cv2
+import platform
 import math
 from telegram.ext import CallbackQueryHandler
 import requests
@@ -93,26 +92,6 @@ from html import escape
 def boldify(text: str) -> str:
     return re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", text)
 
-
-
-MODEL_PATH = "realesrgan/RealESRGAN_x4plus.pth"
-
-
-rrdbnet = RRDBNet(
-    num_in_ch=3, num_out_ch=3,
-    num_feat=64, num_block=23,
-    num_grow_ch=32, scale=4
-)
-
-upsampler = RealESRGANer(
-    scale=4,
-    model_path=MODEL_PATH,
-    model=rrdbnet,
-    tile=200,     # reduce if GPU RAM is low
-    tile_pad=10,
-    pre_pad=0,
-    half=False    # set True if you have RTX GPU with FP16
-)
 
 
 
@@ -1403,8 +1382,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/song - Show current song info\n"
         "/ping - Check bot status\n"
         "/help - Show this help message\n"
-        "/vplay- will add soon"
-        "/upscale- free hosting server cant handle (not my fault)"
+        "/vplay- ni aata meko"
     ]
     
     await update.message.reply_text("Available commands:\n" + "\n".join(commands))
@@ -2883,31 +2861,33 @@ async def quote_command(update, context):
         profile_image_path = os.path.join(temp_dir, f"{user.id}_placeholder.png")
         create_placeholder_avatar(profile_image_path, initial, user.id)
 
+    temp_png = tempfile.mktemp(suffix=".png")
+    temp_webp = tempfile.mktemp(suffix=".webp")
+
     try:
         wait_msg = await message.reply_text("Please wait while quoting your text...")
 
-        # 🔑 NEW: get BytesIO directly instead of writing to temp_png
-        bio = await create_quote_image(
+        await create_quote_image(
             name=user.first_name or "User",
             message=text,
             profile_image=profile_image_path,
-            output_path="sticker.png",  # still saved for debugging
+            output_path=temp_png,
         )
-
-        if not bio:
-            await wait_msg.edit_text("❌ Failed to render sticker.")
-            return
+        img = Image.open(temp_png)
+        img.save(temp_webp, "WEBP", lossless=True)
 
         await wait_msg.delete()  # remove waiting message
-        await message.reply_sticker(sticker=InputFile(bio))  # use BytesIO directly
+        with open(temp_webp, "rb") as sticker_file:
+            await message.reply_sticker(sticker=InputFile(sticker_file))
 
     except Exception as e:
         await message.reply_text("Failed to create sticker.")
         print(f"Error: {e}")
 
     finally:
-        if profile_image_path and os.path.exists(profile_image_path):
-            os.remove(profile_image_path)
+        for p in [profile_image_path, temp_png, temp_webp]:
+            if p and os.path.exists(p):
+                os.remove(p)
 
 
 
@@ -3889,8 +3869,6 @@ def main():
 
     # Build the python-telegram-bot application
     application = ApplicationBuilder().token(BOT_TOKEN).concurrent_updates(True).build()
-    job_queue = application.job_queue
-
 
     # Register all handlers here (already present in your code)
     application.add_handler(CommandHandler("start", start))
@@ -3982,8 +3960,7 @@ def main():
 
 
     # Run periodic unmute task
-    job_queue.run_repeating(lambda ctx: asyncio.create_task(unmute_expired_task(application)), interval=5, first=5)
-
+    application.job_queue.run_repeating(lambda ctx: asyncio.create_task(unmute_expired_task(application)), interval=5, first=5)
 
     # Start Pyrogram client as background async task
     loop = asyncio.get_event_loop()
@@ -3994,27 +3971,9 @@ def main():
     application.run_polling()
 
 
-from flask import Flask
-import threading
-import os
-
-flask_app = Flask(__name__)
-
-@flask_app.route('/')
-def home():
-    return "Bot is running!"
-
-def run_flask():
-    port = int(os.environ.get("PORT", 10000))
-    print(f"[Flask] Starting on 0.0.0.0:{port}", flush=True)
-    flask_app.run(host="0.0.0.0", port=port)
-
 if __name__ == "__main__":
-    # Start Flask in a background thread
-    threading.Thread(target=run_flask, daemon=True).start()
+    main()
 
-    # Start your bot
-    import asyncio
-    asyncio.run(main())
+
 
 
