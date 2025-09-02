@@ -23,4 +23,4 @@ RUN playwright install --with-deps chromium
 COPY . .
 
 # Run your bot
-CMD ["python", "mng2.py"]
+CMD ["python", "merged_runner.py"]
