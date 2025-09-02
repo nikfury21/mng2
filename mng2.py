@@ -159,7 +159,7 @@ sending_pics = False
 pic_enabled = {}  # chat_id: True/False
 # LOCK SYSTEM STORAGE AND LOGIC (from lock.py)
 LOCKS_FILE = "locks.json"
-BOT_USERNAME = "furyyyy_bot"  # (set to your bot, without @)
+BOT_USERNAME = "Yukino_Roxbot"  # (set to your bot, without @)
 REGISTERED_USERS = set()
 # Nightmode status per chat
 nightmode_status = {}
@@ -3983,6 +3983,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
