@@ -29,6 +29,7 @@ huggingface-hub==0.24.6
 duckduckgo-search==6.2.5
 
 # Image & video processing
+numpy==1.26.4
 Pillow==10.4.0
 opencv-python==4.7.0.72
 basicsr==1.4.2
@@ -42,6 +43,7 @@ playwright==1.46.0
 # Timezones & templates
 pytz==2024.2
 jinja2
+
 
 
 
