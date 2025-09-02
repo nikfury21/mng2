@@ -113,8 +113,10 @@ pyro_client = PyroClient(
     "pic_bot",
     api_id=API_ID,
     api_hash=API_HASH,
-    bot_token=BOT_TOKEN
+    bot_token=BOT_TOKEN,
+    in_memory=True
 )
+
 
 # AI keys
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
@@ -3983,6 +3985,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
