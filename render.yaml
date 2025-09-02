@@ -1,11 +1,10 @@
 services:
   - type: web
     name: my-tg-bot
-    env: python
-    buildCommand: |
-      pip install -r requirements.txt
-      playwright install --with-deps
-    startCommand: python mng2.py
+    env: docker
+    plan: free
+    buildCommand: ""   # handled by Dockerfile
+    startCommand: ""   # handled by Dockerfile
     envVars:
       - key: BOT_TOKEN
         value: "your-telegram-bot-token"
@@ -13,3 +12,4 @@ services:
         value: "your-telethon-api-id"
       - key: API_HASH
         value: "your-telethon-api-hash"
+
