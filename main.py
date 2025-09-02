@@ -775,7 +775,7 @@ async def fallback_local_playback(chat_id: int, message: Message, song_info: dic
         one_line = _one_line_title(song_info["title"])
         base_caption = (
             "<blockquote>"
-            "<b>🎧 test Streaming</b> (Local Playback)\n\n"
+            "<b>🎧 𝖣𝗂𝗄𝗌𝗁𝗎 ᥫ᭡ Streaming</b> (Local Playback)\n\n"
             f"❍ <b>Title:</b> {one_line}\n"
             f"❍ <b>Requested by:</b> {song_info['requester']}"
             "</blockquote>"
@@ -1402,8 +1402,8 @@ if __name__ == "__main__":
         sys.exit(1)
 
     me = bot.get_me()
-    BOT_NAME = me.first_name or "Frozen Music"
-    BOT_USERNAME = me.username or os.getenv("BOT_USERNAME", "furyyyy_bot")
+    BOT_NAME = me.first_name or "𝖣𝗂𝗄𝗌𝗁𝗎 ᥫ᭡"
+    BOT_USERNAME = me.username or os.getenv("BOT_USERNAME", "Yukino_Roxbot")
     BOT_LINK = f"https://t.me/{BOT_USERNAME}"
 
     logger.info(f"✅ Bot Name: {BOT_NAME!r}")
@@ -1442,3 +1442,4 @@ async def main():
     print("music bot started")
 
     await bot.idle()
+
