@@ -12,4 +12,3 @@ services:
         value: "your-telethon-api-id"
       - key: API_HASH
         value: "your-telethon-api-hash"
-
