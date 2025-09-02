@@ -4,11 +4,12 @@ FROM python:3.10-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies needed for OpenCV/RealESRGAN
+# Install system dependencies needed for OpenCV/RealESRGAN + Git
 RUN apt-get update && apt-get install -y \
     build-essential \
     libgl1 \
     libglib2.0-0 \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
@@ -22,5 +23,6 @@ RUN playwright install --with-deps chromium
 # Copy project files
 COPY . .
 
-# Run your bot
+# Run your bot (merged_runner.py is the entrypoint)
 CMD ["python", "merged_runner.py"]
+
