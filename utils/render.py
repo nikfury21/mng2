@@ -33,6 +33,14 @@ HTML_TEMPLATE = """
       font-family: 'Arial';
       src: url('file://{{ arial_font }}');
     }
+    @font-face {
+      font-family: 'DejaVuBold';
+      src: url('file://{{ dejavu_bold }}');
+    }
+    @font-face {
+      font-family: 'ArialUnicode';
+      src: url('file://{{ arial_unicode }}');
+    }
 
     html, body {
       margin: 0;
@@ -57,7 +65,7 @@ HTML_TEMPLATE = """
     }
 
     .container {
-      font-family: 'Segoe UI', 'Symbola', 'DejaVu', 'Fallback', 'Arial', 'Noto Color Emoji', sans-serif;
+      font-family: 'Segoe UI','DejaVuBold','DejaVu','ArialUnicode','Symbola','Fallback','Arial','Noto Color Emoji',sans-serif;
       background: linear-gradient(90deg, #191423, #231c33);
       border-radius: 20px;
       color: white;
@@ -105,7 +113,10 @@ async def create_quote_image(name, message, profile_image=None, output_path="sti
     fallback_font = "fonts/unifont-16.0.04.otf"
     symbola_font  = "fonts/Symbola.ttf"
     dejavu_font   = "fonts/DejaVuSans.ttf"
-    arial_font    = "fonts/arial unicode ms.otf"
+    dejavu_bold   = "fonts/DejaVuSans-Bold.ttf"
+    arial_unicode = "fonts/arial unicode ms.otf"
+    arial_font    = "fonts/arial.ttf"
+
 
 
     temp_profile_uri = None
@@ -236,6 +247,7 @@ async def handle_message(message):
         print(f"Handler error: {e}")
 
 """
+
 
 
 
