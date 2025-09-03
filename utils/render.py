@@ -6,6 +6,7 @@ import base64
 import uuid
 from pathlib import Path
 import platform
+import io
 import asyncio, sys
 import shutil  # put this at the top with your imports
 # Fix Playwright subprocess issue on Windows
@@ -234,5 +235,6 @@ async def handle_message(message):
         print(f"Handler error: {e}")
 
 """
+
 
 
