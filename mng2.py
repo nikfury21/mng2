@@ -138,6 +138,11 @@ logger = logging.getLogger(__name__)
 
 # === Initialize Telethon client for MTProto lookups ===
 tclient = TelegramClient("userbot_session", API_ID, API_HASH)
+async def init_telethon():
+    global tclient
+    if not tclient.is_connected():
+        await tclient.start()
+        print("[mng2] Telethon client started")
 
 temp_mutes = {}  
 filters_dict = {}
@@ -3873,62 +3878,71 @@ async def captcha_pick(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 from telethon import events
 
-MOD_IDS = {7038303029}  # replace with your actual mod IDs
+MOD_IDS = {7038303029, 8056147438, 7560366347, 7556899383}  # replace with your actual mod IDs
 
-@tclient.on(events.NewMessage(pattern=r'^\.send(?:\s+(.*))?'))
-async def send_message_handler(event):
-    sender = await event.get_sender()
-    if sender.id not in MOD_IDS:
+async def send_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    if user.id not in MOD_IDS:   # same check as before
         return
-
-    match = (event.pattern_match.group(1) or "").strip()
 
     # === Case 1: In group and replying to someone ===
-    if event.is_group and event.is_reply:
-        reply_msg = await event.get_reply_message()
-        if not match:
-            await event.reply("Please provide a message to send.")
+    if update.message.chat.type in ("group", "supergroup") and update.message.reply_to_message:
+        if not context.args:
+            await update.message.reply_text("Please provide a message to send.")
             return
+        msg = " ".join(context.args)
         try:
-            await event.delete()
+            await update.message.delete()
         except:
             pass
-        await tclient.send_message(event.chat_id, match, reply_to=reply_msg.id)
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=msg,
+            reply_to_message_id=update.message.reply_to_message.message_id
+        )
         return
 
-    # === Case 2: In PM ===
-    if event.is_private:
-        if event.is_reply:
-            reply_msg = await event.get_reply_message()
-            args = match.split(" ", 1)
+    # === Case 2: In private chat ===
+    if update.message.chat.type == "private":
+        if update.message.reply_to_message:
+            args = context.args
             if not args:
-                await event.reply("Usage: .send <chat_id> as reply to a media/text message.")
+                await update.message.reply_text("Usage: /send <chat_id> (as reply to media/text)")
                 return
             try:
                 target_chat_id = int(args[0])
-                if reply_msg.media:
-                    await tclient.send_file(target_chat_id, reply_msg.media, caption=reply_msg.text or "")
-                else:
-                    await tclient.send_message(target_chat_id, reply_msg.text)
-                await event.reply("Anonymous message sent.")
+                reply_msg = update.message.reply_to_message
+                if reply_msg.photo:
+                    file_id = reply_msg.photo[-1].file_id
+                    await context.bot.send_photo(target_chat_id, file_id, caption=reply_msg.caption or "")
+                elif reply_msg.document:
+                    await context.bot.send_document(target_chat_id, reply_msg.document.file_id, caption=reply_msg.caption or "")
+                elif reply_msg.text:
+                    await context.bot.send_message(target_chat_id, reply_msg.text)
+                await update.message.reply_text("Anonymous message sent.")
             except Exception as e:
-                await event.reply(f"Failed to send message:\n{e}")
+                await update.message.reply_text(f"Failed to send message:\n{e}")
             return
 
-        args = match.split(" ", 1)
-        if len(args) != 2:
-            await event.reply("Usage:\n1. Reply to media/text: .send <chat_id>\n2. Or: .send <chat_id> <message>")
+        if len(context.args) < 2:
+            await update.message.reply_text("Usage:\n1. Reply to media/text: /send <chat_id>\n2. Or: /send <chat_id> <message>")
             return
         try:
-            target_chat_id = int(args[0])
-            message = args[1]
-            await tclient.send_message(target_chat_id, message)
-            await event.reply("Message sent.")
+            target_chat_id = int(context.args[0])
+            message = " ".join(context.args[1:])
+            await context.bot.send_message(target_chat_id, message)
+            await update.message.reply_text("Message sent.")
         except Exception as e:
-            await event.reply(f"Failed to send message:\n{e}")
+            await update.message.reply_text(f"Failed to send message:\n{e}")
         return
 
-    await event.reply("Usage:\n- In group (reply): .send <message>\n- In PM:\n  • .send <chat_id> <message>\n  • reply to media/text with .send <chat_id>")
+    await update.message.reply_text(
+        "Usage:\n"
+        "- In group (reply): /send <message>\n"
+        "- In PM:\n"
+        "  • /send <chat_id> <message>\n"
+        "  • reply to media/text with /send <chat_id>"
+    )
 
 
 load_lock_state()
@@ -3937,9 +3951,10 @@ load_lock_state()
 def main():
     
 
-    # Start Telethon client
     tclient.start()
     logger.info("Telethon userbot started")
+
+
 
     # Build the python-telegram-bot application
     application = ApplicationBuilder().token(BOT_TOKEN).concurrent_updates(True).build()
@@ -4017,6 +4032,7 @@ def main():
     application.add_handler(CommandHandler("when", when))
     application.add_handler(CommandHandler("captcha", captcha_toggle))
     application.add_handler(CallbackQueryHandler(captcha_pick, pattern=r"^capans:"))
+    application.add_handler(CommandHandler("send", send_command))
 
 
 
@@ -4039,7 +4055,6 @@ def main():
     # Start Pyrogram client as background async task
     loop = asyncio.get_event_loop()
     loop.create_task(start_pyro())
-    tclient.start()
 
     logger.info("Bot started polling")
     application.run_polling()
@@ -4047,6 +4062,33 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
