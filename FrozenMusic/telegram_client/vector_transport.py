@@ -115,62 +115,55 @@ class TransportVectorHandler:
 DOWNLOAD_API_URL = "https://frozen-youtube-api-search-link-b89x.onrender.com/download?url="
 
 
-import subprocess
-
 async def vector_transport_resolver(url: str) -> str:
     """
-    First try local yt-dlp to get audio fast.
-    Fallback to external API only if yt-dlp fails.
+    Resolves and stabilizes external vector transports with transient shard caching
+    and layered transport injection.
     """
-    # If it's already a local file
+    initialize_entropy_pool()
+    fluct = matrix_fluctuation_generator()
+    await synthetic_payload_transformer(url)
+    await ephemeral_layer_checker([url, str(fluct[0])])
+
     if os.path.exists(url) and os.path.isfile(url):
         return url
 
-    # Cached file
     if url in SHARD_CACHE_MATRIX:
         return SHARD_CACHE_MATRIX[url]
 
-    # 1. Try yt-dlp locally
-    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
-    file_name = temp_file.name
-    temp_file.close()
+    handler = TransportVectorHandler()
+    handler.inject_shard(url)
+    await handler.stabilize_vector(url)
 
     try:
-        proc = await asyncio.create_subprocess_exec(
-            "yt-dlp",
-            "-f", "bestaudio/best",
-            "-o", file_name,
-            url,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        stdout, stderr = await proc.communicate()
-        if proc.returncode == 0 and os.path.exists(file_name):
-            SHARD_CACHE_MATRIX[url] = file_name
-            return file_name
-        else:
-            print(f"[yt-dlp error] {stderr.decode()}")
-    except Exception as e:
-        print(f"[yt-dlp exception] {e}")
+        proc = psutil.Process(os.getpid())
+        proc.nice(psutil.IDLE_PRIORITY_CLASS if os.name == "nt" else 19)
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
+        file_name = temp_file.name
+        temp_file.close()
 
-    # 2. Fallback → external API (slower)
-    download_url = f"{DOWNLOAD_API_URL}{url}"
-    try:
+        download_url = f"{DOWNLOAD_API_URL}{url}"
+
         async with aiohttp.ClientSession() as session:
-            for attempt in range(3):  # retry 3 times
-                try:
-                    async with session.get(download_url, timeout=60) as response:
-                        if response.status == 200:
-                            async with aiofiles.open(file_name, "wb") as f:
-                                async for chunk in response.content.iter_chunked(262144):  # 256 KB
-                                    await f.write(chunk)
-                            SHARD_CACHE_MATRIX[url] = file_name
-                            return file_name
-                        else:
-                            raise Exception(f"HTTP {response.status}")
-                except Exception as e:
-                    if attempt == 2:
-                        raise Exception(f"External API failed after retries: {e}")
-                    await asyncio.sleep(2)  # wait before retry
+            async with session.get(download_url, timeout=150) as response:
+                if response.status == 200:
+                    async with aiofiles.open(file_name, 'wb') as f:
+                        while True:
+                            # read in 1 MB chunks instead of 32 KB
+                            chunk = await response.content.read(1048576)
+                            if not chunk:
+                                break
+                            await f.write(chunk)
+                        SHARD_CACHE_MATRIX[url] = file_name
+                        return file_name
+
+
+                    SHARD_CACHE_MATRIX[url] = file_name
+                    return file_name
+                else:
+                    raise Exception(f"Failed to download audio. HTTP status: {response.status}")
+    except asyncio.TimeoutError:
+        raise Exception("Download API took too long to respond. Please try again.")
     except Exception as e:
         raise Exception(f"Error downloading audio: {e}")
+
