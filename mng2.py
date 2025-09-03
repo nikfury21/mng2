@@ -105,7 +105,6 @@ from pyrogram import Client as PyroClient
 import google.generativeai as genai
 from groq import Client
 
-# === Configuration (from .env) ===
 API_ID = int(os.getenv("MNG_API_ID"))
 API_HASH = os.getenv("MNG_API_HASH")
 BOT_TOKEN = os.getenv("MNG_BOT_TOKEN")
@@ -1449,7 +1448,9 @@ async def info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pass
 
     # Get total profile photos count
-    profile_photos = await bot.get_user_profile_photos(user_id)
+    user = await bot.get_chat(user_id)
+    profile_photos = await bot.get_user_profile_photos(user.id)
+
     total_photos = profile_photos.total_count if profile_photos else 0
 
     # Approved status
@@ -3870,6 +3871,66 @@ async def captcha_pick(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
 
+from telethon import events
+
+MOD_IDS = {7038303029}  # replace with your actual mod IDs
+
+@tclient.on(events.NewMessage(pattern=r'^\.send(?:\s+(.*))?'))
+async def send_message_handler(event):
+    sender = await event.get_sender()
+    if sender.id not in MOD_IDS:
+        return
+
+    match = (event.pattern_match.group(1) or "").strip()
+
+    # === Case 1: In group and replying to someone ===
+    if event.is_group and event.is_reply:
+        reply_msg = await event.get_reply_message()
+        if not match:
+            await event.reply("Please provide a message to send.")
+            return
+        try:
+            await event.delete()
+        except:
+            pass
+        await tclient.send_message(event.chat_id, match, reply_to=reply_msg.id)
+        return
+
+    # === Case 2: In PM ===
+    if event.is_private:
+        if event.is_reply:
+            reply_msg = await event.get_reply_message()
+            args = match.split(" ", 1)
+            if not args:
+                await event.reply("Usage: .send <chat_id> as reply to a media/text message.")
+                return
+            try:
+                target_chat_id = int(args[0])
+                if reply_msg.media:
+                    await tclient.send_file(target_chat_id, reply_msg.media, caption=reply_msg.text or "")
+                else:
+                    await tclient.send_message(target_chat_id, reply_msg.text)
+                await event.reply("Anonymous message sent.")
+            except Exception as e:
+                await event.reply(f"Failed to send message:\n{e}")
+            return
+
+        args = match.split(" ", 1)
+        if len(args) != 2:
+            await event.reply("Usage:\n1. Reply to media/text: .send <chat_id>\n2. Or: .send <chat_id> <message>")
+            return
+        try:
+            target_chat_id = int(args[0])
+            message = args[1]
+            await tclient.send_message(target_chat_id, message)
+            await event.reply("Message sent.")
+        except Exception as e:
+            await event.reply(f"Failed to send message:\n{e}")
+        return
+
+    await event.reply("Usage:\n- In group (reply): .send <message>\n- In PM:\n  • .send <chat_id> <message>\n  • reply to media/text with .send <chat_id>")
+
+
 load_lock_state()
 
 
@@ -3986,6 +4047,22 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
