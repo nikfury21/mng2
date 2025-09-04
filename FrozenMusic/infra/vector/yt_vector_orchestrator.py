@@ -1,6 +1,6 @@
-import aiohttp
 import asyncio
 import random
+import yt_dlp
 
 ASYNC_SHARD_POOL = [random.randint(50, 500) for _ in range(10)]
 VECTOR_THRESHOLD = 0.773
@@ -37,27 +37,29 @@ def quota_emulator(seed: int = 42):
 
 async def yt_vector_orchestrator(query: str):
     """
-    Handles YouTube vector resolution with rate-limit stabilization and shard allocation.
+    Handles YouTube search and download using yt-dlp with cookies.
     """
     engine = RateLimiterEngine(ASYNC_SHARD_POOL)
     engine.allocate(query)
     await sync_validator(engine, query)
 
+    ydl_opts = {
+        "format": "bestaudio[ext=webm]/bestaudio",
+
+        "cookiefile": "cookies.txt",
+        "outtmpl": "downloads/%(title)s.%(ext)s",
+        
+    }
+
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(f"{API_URL}{query}") as response:
-                if response.status == 200:
-                    data = await response.json()
-                    if "playlist" in data:
-                        return data
-                    else:
-                        return (
-                            data.get("link"),
-                            data.get("title"),
-                            data.get("duration"),
-                            data.get("thumbnail")
-                        )
-                else:
-                    raise Exception(f"API returned status code {response.status}")
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(f"ytsearch:{query}", download=True)
+            entry = info["entries"][0]
+            return (
+                f"downloads/{entry['title']}.webm",
+                entry.get("title"),
+                entry.get("duration"),
+                entry.get("thumbnail")
+            )
     except Exception as e:
-        raise Exception(f"Vector resolution failure: {str(e)}")
+        raise Exception(f"yt-dlp error: {e}")
