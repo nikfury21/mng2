@@ -1076,9 +1076,95 @@ async def skip_handler(client, message):
             f"⏩ Skipped **{skipped_song['title']}**.\n\n💕 Playing the next song..."
         )
         await skip_to_next_song(chat_id, status_message)
+import asyncio
+import os
+
+async def restart_with_seek(chat_id: int, seek_pos: int, message: Message):
+    if chat_id not in chat_containers or not chat_containers[chat_id]:
+        await message.reply("❌ Nothing is playing.")
+        return
+
+    song_info = chat_containers[chat_id][0]
+    try:
+        # Stop current playback
+        await call_py.leave_call(chat_id)
+
+        # Prepare trimmed file path
+        media_path = await vector_transport_resolver(song_info["url"])
+        trimmed_path = f"seeked_{chat_id}.mp3"
+
+        # Run ffmpeg to trim from 'seek_pos'
+        cmd = [
+            "ffmpeg", "-y",
+            "-ss", str(seek_pos),   # seek first
+            "-i", media_path,
+            "-acodec", "copy",
+            trimmed_path
+        ]
+        proc = await asyncio.create_subprocess_exec(
+            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        )
+        await proc.communicate()
+
+        # Play trimmed file
+        await call_py.play(
+            chat_id,
+            MediaStream(trimmed_path, video_flags=MediaStream.Flags.IGNORE),
+        )
+        # Reset start_time relative to new seek position
+        song_info["start_time"] = time.time() - seek_pos  
+
+        await message.reply(
+            f"⏩ Seeked to {format_time(seek_pos)} in **{song_info['title']}**"
+        )
+    except Exception as e:
+        await message.reply(f"❌ Failed to seek.\nError: {str(e)}")
 
 
 
+
+@bot.on_message(filters.group & filters.command("seek"))
+async def seek_handler(client, message: Message):
+        args = message.text.split()
+        if len(args) < 2 or not args[1].isdigit():
+            await message.reply("❌ Usage: /seek <seconds>")
+            return
+
+        chat_id = message.chat.id
+        if chat_id not in chat_containers or not chat_containers[chat_id]:
+            await message.reply("❌ Nothing is playing.")
+            return
+
+        seconds = int(args[1])
+        song_info = chat_containers[chat_id][0]
+        elapsed = int(time.time() - song_info.get("start_time", time.time()))
+        seek_pos = elapsed + seconds   # move forward
+
+        duration = parse_duration_str(song_info.get("duration", "0:00"))
+        if seek_pos >= duration:
+            await message.reply("❌ Cannot seek beyond the song length.")
+            return
+  
+        await restart_with_seek(chat_id, seek_pos, message)
+
+@bot.on_message(filters.group & filters.command("seekback"))
+async def seekback_handler(client, message: Message):
+        args = message.text.split()
+        if len(args) < 2 or not args[1].isdigit():
+            await message.reply("❌ Usage: /seekback <seconds>")
+            return
+
+        chat_id = message.chat.id
+        if chat_id not in chat_containers or not chat_containers[chat_id]:
+            await message.reply("❌ Nothing is playing.")
+            return
+
+        seconds = int(args[1])
+        song_info = chat_containers[chat_id][0]
+        elapsed = int(time.time() - song_info.get("start_time", time.time()))
+        seek_pos = max(0, elapsed - seconds)   # move backward
+
+        await restart_with_seek(chat_id, seek_pos, message)
 
 @bot.on_message(filters.command("reboot"))
 async def reboot_handler(_, message):
@@ -1165,21 +1251,7 @@ async def clear_handler(_, message):
         await message.reply("❌ No songs in the queue to clear.")
 
 
-@bot.on_message(filters.command("help"))
-async def help_handler(client, message):
-    help_text = (
-        "/play - Play a song\n"
-        "/stop or /end - Stop playback and clear the queue\n"
-        "/pause - Pause playback\n"
-        "/resume - Resume playback\n"
-        "/skip - Skip current song\n"
-        "/clear - Clear the current queue\n"
-        "/song - Show current song info\n"
-        "/ping - Check bot status\n"
-        "/help - Show this help message\n"
-        "/vplay- ni aata meko"
-    )
-    await message.reply(help_text)
+
 
 
 
@@ -1280,7 +1352,7 @@ if __name__ == "__main__":
 
     me = bot.get_me()
     BOT_NAME = me.first_name or "Frozen Music"
-    BOT_USERNAME = me.username or os.getenv("BOT_USERNAME", "furyyyy_bot")
+    BOT_USERNAME = me.username or os.getenv("BOT_USERNAME", "Yukino_roxbot")
     BOT_LINK = f"https://t.me/{BOT_USERNAME}"
 
     logger.info(f"✅ Bot Name: {BOT_NAME!r}")
@@ -1318,6 +1390,7 @@ async def main():
     await bot.start()
     print("music bot started")
     await bot.idle()
+
 
 
 
