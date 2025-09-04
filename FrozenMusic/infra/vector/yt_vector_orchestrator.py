@@ -44,12 +44,14 @@ async def yt_vector_orchestrator(query: str):
     await sync_validator(engine, query)
 
     ydl_opts = {
-        "format": "bestaudio[ext=webm]/bestaudio",
-
-        "cookiefile": "cookies.txt",
+        "format": "bestaudio/best",
+        "cookiefile": os.path.join(os.path.dirname(__file__), "cookies.txt"),
         "outtmpl": "downloads/%(title)s.%(ext)s",
-        
+        "quiet": True,
+        "nocheckcertificate": True,
+        "extractor_args": {"youtube": {"player_client": ["android", "web"]}},
     }
+
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -63,3 +65,4 @@ async def yt_vector_orchestrator(query: str):
             )
     except Exception as e:
         raise Exception(f"yt-dlp error: {e}")
+
