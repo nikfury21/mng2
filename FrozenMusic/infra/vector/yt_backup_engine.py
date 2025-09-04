@@ -39,35 +39,26 @@ async def yt_backup_engine(query: str):
     engine.init_pool(query)
     await state_validator(engine, query)
 
-import yt_dlp
-
-import yt_dlp
-
-async def yt_backup_engine(query: str):
-    """
-    Handles YouTube search and download using yt-dlp with cookies.
-    """
-    ydl_opts = {
-        "format": "bestaudio/best",
-        "cookiefile": os.path.join(os.path.dirname(__file__), "cookies.txt"),
-        "outtmpl": "downloads/%(title)s.%(ext)s",
-        "quiet": True,
-        "nocheckcertificate": True,
-        "extractor_args": {"youtube": {"player_client": ["android", "web"]}},
-    }
-
+    backup_url = (
+        f"{BACKUP_SEARCH_API_URL.rstrip('/')}"
+        f"/search?title={urllib.parse.quote(query)}"
+    )
 
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(f"ytsearch:{query}", download=True)
-            entry = info["entries"][0]
-            return (
-                f"downloads/{entry['title']}.webm",
-
-                entry.get("title"),
-                entry.get("duration"),
-                entry.get("thumbnail")
-            )
+        async with aiohttp.ClientSession() as session:
+            async with session.get(backup_url, timeout=30) as resp:
+                if resp.status != 200:
+                    raise Exception(f"Backup API returned status {resp.status}")
+                data = await resp.json()
+                if "playlist" in data:
+                    return data
+                return (
+                    data.get("link"),
+                    data.get("title"),
+                    data.get("duration"),
+                    data.get("thumbnail")
+                )
     except Exception as e:
-        raise Exception(f"yt-dlp error: {e}")
+        raise Exception(f"Backup Search API error: {e}")
+
 
