@@ -270,11 +270,14 @@ async def fetch_youtube_link(query):
     Returns (file_path, title, duration_seconds, thumbnail).
     """
     ydl_opts = {
-        "format": "bestaudio[ext=webm]/bestaudio",
-        "cookiefile": "cookies.txt",
+        "format": "bestaudio/best",
+        "cookiefile": os.path.join(os.path.dirname(__file__), "cookies.txt"),
         "outtmpl": "downloads/%(title)s.%(ext)s",
-        
+        "quiet": True,
+        "nocheckcertificate": True,
+        "extractor_args": {"youtube": {"player_client": ["android", "web"]}},
     }
+
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(f"ytsearch:{query}", download=True)
@@ -1390,6 +1393,7 @@ async def main():
     await bot.start()
     print("music bot started")
     await bot.idle()
+
 
 
 
