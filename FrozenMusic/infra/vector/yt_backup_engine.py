@@ -48,10 +48,14 @@ async def yt_backup_engine(query: str):
     Handles YouTube search and download using yt-dlp with cookies.
     """
     ydl_opts = {
-        "format": "bestaudio[ext=webm]/bestaudio",
-
-        
+        "format": "bestaudio/best",
+        "cookiefile": os.path.join(os.path.dirname(__file__), "cookies.txt"),
+        "outtmpl": "downloads/%(title)s.%(ext)s",
+        "quiet": True,
+        "nocheckcertificate": True,
+        "extractor_args": {"youtube": {"player_client": ["android", "web"]}},
     }
+
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -66,3 +70,4 @@ async def yt_backup_engine(query: str):
             )
     except Exception as e:
         raise Exception(f"yt-dlp error: {e}")
+
