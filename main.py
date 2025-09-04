@@ -1,4 +1,4 @@
-import os
+   import os
 import re
 import sys
 import time
@@ -61,12 +61,15 @@ from FrozenMusic.telegram_client.startup_hooks import precheck_channels
 load_dotenv()
 
 
+import os
+
 API_ID = int(os.getenv("MAIN_API_ID"))
 API_HASH = os.getenv("MAIN_API_HASH")
 BOT_TOKEN = os.getenv("MAIN_BOT_TOKEN")
 ASSISTANT_SESSION = os.getenv("MAIN_ASSISTANT_SESSION")
 OWNER_ID = os.getenv("MAIN_OWNER_ID")
 BACKUP_SEARCH_API_URL = os.getenv("BACKUP_SEARCH_API_URL", "")
+
 
 # ——— Monkey-patch resolve_peer ——————————————
 logging.getLogger("pyrogram").setLevel(logging.ERROR)
@@ -96,8 +99,8 @@ def _custom_exception_handler(loop, context):
 asyncio.get_event_loop().set_exception_handler(_custom_exception_handler)
 
 session_name = os.environ.get("SESSION_NAME", "music_bot1")
-bot = Client(session_name, bot_token=BOT_TOKEN, api_id=API_ID, api_hash=API_HASH)
-assistant = Client("assistant_account", session_string=ASSISTANT_SESSION)
+bot = Client(session_name, bot_token=BOT_TOKEN, api_id=API_ID, api_hash=API_HASH, in_memory=True)
+assistant = Client("assistant_account", session_string=ASSISTANT_SESSION, in_memory=True)
 call_py = PyTgCalls(assistant)
 
 
@@ -122,6 +125,7 @@ QUEUE_LIMIT = 20
 MAX_DURATION_SECONDS = 900  
 LOCAL_VC_LIMIT = 10
 playback_mode = {}
+song_loops = {}  # {chat_id: remaining_loops}
 
 
 
@@ -261,37 +265,55 @@ def iso8601_to_human_readable(iso_duration):
     except Exception as e:
         return "Unknown duration"
 
-
-import yt_dlp
-
 async def fetch_youtube_link(query):
-    """
-    Search & download audio from YouTube using yt-dlp with cookies.
-    Returns (file_path, title, duration_seconds, thumbnail).
-    """
-    ydl_opts = {
-        "format": "bestaudio/best",
-        "cookiefile": os.path.join(os.path.dirname(__file__), "cookies.txt"),
-        "outtmpl": "downloads/%(title)s.%(ext)s",
-        "quiet": True,
-        "nocheckcertificate": True,
-        "extractor_args": {"youtube": {"player_client": ["android", "web"]}},
-    }
-
-
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(f"ytsearch:{query}", download=True)
-        entry = info["entries"][0]
-        return (
-            f"downloads/{entry['title']}.webm",
-            entry.get("title"),
-            entry.get("duration"),
-            entry.get("thumbnail")
-        )
+    try:
+        url = f"https://teenage-liz-frozzennbotss-61567ab4.koyeb.app/search?title={query}"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    # Check if the API response contains a playlist
+                    if "playlist" in data:
+                        return data
+                    else:
+                        return (
+                            data.get("link"),
+                            data.get("title"),
+                            data.get("duration"),
+                            data.get("thumbnail")
+                        )
+                else:
+                    raise Exception(f"API returned status code {response.status}")
+    except Exception as e:
+        raise Exception(f"Failed to fetch YouTube link: {str(e)}")
 
 
     
-
+async def fetch_youtube_link_backup(query):
+    if not BACKUP_SEARCH_API_URL:
+        raise Exception("Backup Search API URL not configured")
+    # Build the correct URL:
+    backup_url = (
+        f"{BACKUP_SEARCH_API_URL.rstrip('/')}"
+        f"/search?title={urllib.parse.quote(query)}"
+    )
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(backup_url, timeout=30) as resp:
+                if resp.status != 200:
+                    raise Exception(f"Backup API returned status {resp.status}")
+                data = await resp.json()
+                # Mirror primary API’s return:
+                if "playlist" in data:
+                    return data
+                return (
+                    data.get("link"),
+                    data.get("title"),
+                    data.get("duration"),
+                    data.get("thumbnail")
+                )
+    except Exception as e:
+        raise Exception(f"Backup Search API error: {e}")
     
 BOT_NAME = os.environ.get("BOT_NAME", "Frozen Music")
 BOT_LINK = os.environ.get("BOT_LINK", "https://t.me/vcmusiclubot")
@@ -338,58 +360,33 @@ def to_bold_unicode(text: str) -> str:
             bold_text += char
     return bold_text
 
-@bot.on_message(filters.command("start"))
-async def start_handler(_, message):
-    await message.reply_text(
-        "To play a song, start a vc in the group and use /play (song name), #fury"
-    )
 
 
 
+@bot.on_message(filters.group & filters.command("loop"))
+async def loop_handler(client, message: Message):
+    chat_id = message.chat.id
+    args = message.text.split()
 
-@bot.on_callback_query(filters.regex("^go_back$"))
-async def go_back_callback(_, callback_query):
-    user_id = callback_query.from_user.id
-    raw_name = callback_query.from_user.first_name or ""
-    styled_name = to_bold_unicode(raw_name)
-    user_link = f"[{styled_name}](tg://user?id={user_id})"
+    if len(args) < 2 or not args[1].isdigit():
+        await message.reply("❌ Usage: /loop <number>")
+        return
 
-    add_me_text = to_bold_unicode("Add Me")
-    updates_text = to_bold_unicode("Updates")
-    support_text = to_bold_unicode("Support")
-    help_text = to_bold_unicode("Help")
+    loop_count = int(args[1])
+    if loop_count <= 0:
+        await message.reply("❌ Loop count must be greater than 0.")
+        return
 
-    updates_channel = os.getenv("UPDATES_CHANNEL", "https://t.me/vibeshiftbots")
-    support_group = os.getenv("SUPPORT_GROUP", "https://t.me/Frozensupport1")
+    if chat_id not in chat_containers or not chat_containers[chat_id]:
+        await message.reply("❌ No song is currently playing.")
+        return
 
-    caption = (
-        f"👋 нєу {user_link} 💠, 🥀\n\n"
-        f">🎶 𝗪𝗘𝗟𝗖𝗢𝗠𝗘 𝗧𝗢 {BOT_NAME.upper()}! 🎵\n"
-        ">🚀 𝗧𝗢𝗣-𝗡𝗢𝗧𝗖𝗛 24×7 𝗨𝗣𝗧𝗜𝗠𝗘 & 𝗦𝗨𝗣𝗣𝗢𝗥𝗧\n"
-        ">🔊 𝗖𝗥𝗬𝗦𝗧𝗔𝗟-𝗖𝗟𝗘𝗔𝗥 𝗔𝗨𝗗𝗜𝗢\n"
-        ">🎧 𝗦𝗨𝗣𝗣𝗢𝗥𝗧𝗘𝗗 𝗣𝗟𝗔𝗧𝗙𝗢𝗥𝗠𝗦: YouTube | Spotify | Resso | Apple Music | SoundCloud\n"
-        ">✨ 𝗔𝗨𝗧𝗢-𝗦𝗨𝗚𝗚𝗘𝗦𝗧𝗜𝗢𝗡𝗦 when queue ends\n"
-        ">🛠️ 𝗔𝗗𝗠𝗜𝗡 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦: Pause, Resume, Skip, Stop, Mute, Unmute, Tmute, Kick, Ban, Unban, Couple\n"
-        ">❤️ 𝗖𝗢𝗨𝗣𝗟𝗘 (pick random pair in group)\n"
-        f"๏ ᴄʟɪᴄᴋ {help_text} ʙᴇʟᴏᴡ ғᴏʀ ᴄᴏᴍᴍᴀɴᴅ ʟɪsᴛ."
-    )
+    # Save loop count for this chat
+    song_loops[chat_id] = loop_count
+    current_song = chat_containers[chat_id][0]
 
-    buttons = [
-        [
-            InlineKeyboardButton(f"➕ {add_me_text}", url=f"{BOT_LINK}?startgroup=true"),
-            InlineKeyboardButton(f"📢 {updates_text}", url=updates_channel)
-        ],
-        [
-            InlineKeyboardButton(f"💬 {support_text}", url=support_group),
-            InlineKeyboardButton(f"❓ {help_text}", callback_data="show_help")
-        ]
-    ]
-    reply_markup = InlineKeyboardMarkup(buttons)
-
-    await callback_query.message.edit_caption(
-        caption=caption,
-        parse_mode=ParseMode.MARKDOWN,
-        reply_markup=reply_markup
+    await message.reply(
+        f"🔁 The song **{current_song['title']}** will loop {loop_count} more time(s)."
     )
 
 
@@ -406,21 +403,8 @@ async def go_back_callback(_, callback_query):
 
 
 
-@bot.on_callback_query(filters.regex("^help_util$"))
-async def help_util_callback(_, callback_query):
-    text = (
-        "🔍 *Utility & Extra Commands*\n\n"
-        ">➜ `/ping`\n"
-        "   • Check bot’s response time and uptime.\n\n"
-        ">➜ `/clear`\n"
-        "   • Clear the entire queue. (Admins only)\n\n"
-        ">➜ Auto-Suggestions:\n"
-        "   • When the queue ends, the bot automatically suggests new songs via inline buttons.\n\n"
-        ">➜ *Audio Quality & Limits*\n"
-        "   • Streams up to 2 hours 10 minutes, but auto-fallback for longer. (See `MAX_DURATION_SECONDS`)\n"
-    )
-    buttons = [[InlineKeyboardButton("🔙 Back", callback_data="show_help")]]
-    await callback_query.message.edit_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=InlineKeyboardMarkup(buttons))
+
+
 
 
 @bot.on_message(filters.group & filters.regex(r'^/play(?:@\w+)?(?:\s+(?P<query>.+))?$'))
@@ -529,56 +513,102 @@ async def process_play_command(message: Message, query: str):
         if m:
             query = f"https://www.youtube.com/watch?v={m.group(1)}"
 
-    # Perform YouTube search and handle results (yt-dlp)
+    # Perform YouTube search and handle results
     try:
         result = await fetch_youtube_link(query)
-    except Exception as e:
-        await processing_message.edit(f"❌ Failed to fetch YouTube link: {e}")
-        return
-
-    # Since yt-dlp doesn’t return playlists here, handle single video
-    file_path, title, secs, thumb = result
-    if not file_path:
+    except Exception as primary_err:
         await processing_message.edit(
-            "❌ Could not find the song. Try another query or dm @PraiseTheFraud for this error"
+            "⚠️ Primary search failed. Using backup API, this may take a few seconds…"
         )
-        return
+        try:
+            result = await fetch_youtube_link_backup(query)
+        except Exception as backup_err:
+            await processing_message.edit(
+                f"❌ Both search APIs failed:\n"
+                f"Primary: {primary_err}\n"
+                f"Backup:  {backup_err}"
+            )
+            return
 
-    if secs > MAX_DURATION_SECONDS:
-        await processing_message.edit(
-            "❌ Cannot stream music longer than 15 min"
+    # Handle playlist vs single video
+    if isinstance(result, dict) and "playlist" in result:
+        playlist_items = result["playlist"]
+        if not playlist_items:
+            await processing_message.edit("❌ No videos found in the playlist.")
+            return
+
+        chat_containers.setdefault(chat_id, [])
+        for item in playlist_items:
+            secs = isodate.parse_duration(item["duration"]).total_seconds()
+            chat_containers[chat_id].append({
+                "url": item["link"],
+                "title": item["title"],
+                "duration": iso8601_to_human_readable(item["duration"]),
+                "duration_seconds": secs,
+                "requester": message.from_user.first_name if message.from_user else "Unknown",
+                "thumbnail": item["thumbnail"]
+            })
+
+        total = len(playlist_items)
+        reply_text = (
+            f"✨ Added to playlist\n"
+            f"Total songs added to queue: {total}\n"
+            f"#1 - {playlist_items[0]['title']}"
         )
-        return
+        if total > 1:
+            reply_text += f"\n#2 - {playlist_items[1]['title']}"
+        await message.reply(reply_text)
 
-    readable = format_time(secs)
-    chat_containers.setdefault(chat_id, [])
-    chat_containers[chat_id].append({
-        "url": file_path,
-        "title": title,
-        "duration": readable,
-        "duration_seconds": secs,
-        "requester": message.from_user.first_name if message.from_user else "Unknown",
-        "thumbnail": thumb
-    })
+        # If first playlist song, start playback
+        if len(chat_containers[chat_id]) == total:
+            first_song_info = chat_containers[chat_id][0]
+            await fallback_local_playback(chat_id, processing_message, first_song_info)
+        else:
+            await processing_message.delete()
 
-    # If it's the first song, start playback immediately using fallback
-    if len(chat_containers[chat_id]) == 1:
-        await fallback_local_playback(chat_id, processing_message, chat_containers[chat_id][0])
     else:
-        queue_buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("⏭ Skip", callback_data="skip"),
-             InlineKeyboardButton("🗑 Clear", callback_data="clear")]
-        ])
-        await message.reply(
-            f"✨ Added to queue :\n\n"
-            f"**❍ Title ➥** {title}\n"
-            f"**❍ Time ➥** {readable}\n"
-            f"**❍ By ➥ ** {message.from_user.first_name if message.from_user else 'Unknown'}\n"
-            f"**Queue number:** {len(chat_containers[chat_id]) - 1}",
-            reply_markup=queue_buttons
-        )
-        await processing_message.delete()
+        video_url, title, duration_iso, thumb = result
+        if not video_url:
+            await processing_message.edit(
+                "❌ Could not find the song. Try another query or dm @PraiseTheFraud for this error"
+            )
+            return
 
+        secs = isodate.parse_duration(duration_iso).total_seconds()
+        if secs > MAX_DURATION_SECONDS:
+            await processing_message.edit(
+                "❌ can stream music longer than 15 min"
+            )
+            return
+
+        readable = iso8601_to_human_readable(duration_iso)
+        chat_containers.setdefault(chat_id, [])
+        chat_containers[chat_id].append({
+            "url": video_url,
+            "title": title,
+            "duration": readable,
+            "duration_seconds": secs,
+            "requester": message.from_user.first_name if message.from_user else "Unknown",
+            "thumbnail": thumb
+        })
+
+        # If it's the first song, start playback immediately using fallback
+        if len(chat_containers[chat_id]) == 1:
+            await fallback_local_playback(chat_id, processing_message, chat_containers[chat_id][0])
+        else:
+            queue_buttons = InlineKeyboardMarkup([
+                [InlineKeyboardButton("⏭ Skip", callback_data="skip"),
+                 InlineKeyboardButton("🗑 Clear", callback_data="clear")]
+            ])
+            await message.reply(
+                f"✨ Added to queue :\n\n"
+                f"**❍ Title ➥** {title}\n"
+                f"**❍ Time ➥** {readable}\n"
+                f"**❍ By ➥ ** {message.from_user.first_name if message.from_user else 'Unknown'}\n"
+                f"**Queue number:** {len(chat_containers[chat_id]) - 1}",
+                reply_markup=queue_buttons
+            )
+            await processing_message.delete()
 
 
 # ─── Utility functions ──────────────────────────────────────────────────────────────
@@ -705,7 +735,7 @@ async def update_progress_caption(
 
 
 
-LOG_CHAT_ID = "@frozenmusiclogs"
+LOG_CHAT_ID = "@test727432"
 
 async def fallback_local_playback(chat_id: int, message: Message, song_info: dict):
     playback_mode[chat_id] = "local"
@@ -736,6 +766,8 @@ async def fallback_local_playback(chat_id: int, message: Message, song_info: dic
             chat_id,
             MediaStream(media_path, video_flags=MediaStream.Flags.IGNORE)
         )
+        song_info["start_time"] = time.time()
+
         playback_tasks[chat_id] = asyncio.current_task()
 
         # Prepare caption & keyboard
@@ -743,7 +775,7 @@ async def fallback_local_playback(chat_id: int, message: Message, song_info: dic
         one_line = _one_line_title(song_info["title"])
         base_caption = (
             "<blockquote>"
-            "<b>🎧 test Streaming</b> (Local Playback)\n\n"
+            "<b>🎧 𝖣𝗂𝗄𝗌𝗁𝗎 ᥫ᭡ Streaming</b> (Local Playback)\n\n"
             f"❍ <b>Title:</b> {one_line}\n"
             f"❍ <b>Requested by:</b> {song_info['requester']}"
             "</blockquote>"
@@ -919,6 +951,13 @@ async def stream_end_handler(_: PyTgCalls, update: StreamEnded):
     if chat_id in chat_containers and chat_containers[chat_id]:
         # Remove the finished song from the queue
         skipped_song = chat_containers[chat_id].pop(0)
+
+# Check loop setting
+        if chat_id in song_loops and song_loops[chat_id] > 0:
+    # Reinsert the same song at the front of the queue
+            chat_containers[chat_id].insert(0, skipped_song.copy())
+            song_loops[chat_id] -= 1
+
         await asyncio.sleep(3)  # Delay to ensure the stream has fully ended
 
         try:
@@ -1079,6 +1118,8 @@ async def skip_handler(client, message):
             f"⏩ Skipped **{skipped_song['title']}**.\n\n💕 Playing the next song..."
         )
         await skip_to_next_song(chat_id, status_message)
+
+
 import asyncio
 import os
 
@@ -1150,6 +1191,8 @@ async def seek_handler(client, message: Message):
   
         await restart_with_seek(chat_id, seek_pos, message)
 
+
+
 @bot.on_message(filters.group & filters.command("seekback"))
 async def seekback_handler(client, message: Message):
         args = message.text.split()
@@ -1168,6 +1211,13 @@ async def seekback_handler(client, message: Message):
         seek_pos = max(0, elapsed - seconds)   # move backward
 
         await restart_with_seek(chat_id, seek_pos, message)
+
+
+
+
+
+
+
 
 @bot.on_message(filters.command("reboot"))
 async def reboot_handler(_, message):
@@ -1252,8 +1302,6 @@ async def clear_handler(_, message):
         await message.reply("🗑️ Cleared the queue.")
     else:
         await message.reply("❌ No songs in the queue to clear.")
-
-
 
 
 
@@ -1354,8 +1402,8 @@ if __name__ == "__main__":
         sys.exit(1)
 
     me = bot.get_me()
-    BOT_NAME = me.first_name or "Frozen Music"
-    BOT_USERNAME = me.username or os.getenv("BOT_USERNAME", "Yukino_roxbot")
+    BOT_NAME = me.first_name or "𝖣𝗂𝗄𝗌𝗁𝗎 ᥫ᭡"
+    BOT_USERNAME = me.username or os.getenv("BOT_USERNAME", "Yukino_Roxbot")
     BOT_LINK = f"https://t.me/{BOT_USERNAME}"
 
     logger.info(f"✅ Bot Name: {BOT_NAME!r}")
@@ -1392,9 +1440,7 @@ if __name__ == "__main__":
 async def main():
     await bot.start()
     print("music bot started")
+
     await bot.idle()
-
-
-
 
 
